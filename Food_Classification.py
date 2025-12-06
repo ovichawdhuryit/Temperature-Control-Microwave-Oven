@@ -17,6 +17,9 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.applications import MobileNetV2
 from tensorflow.keras import layers, models
 import matplotlib.pyplot as plt
+import numpy as np
+from sklearn.metrics import confusion_matrix
+import seaborn as sns
 
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
@@ -81,19 +84,102 @@ history = model.fit(
 model.save("/content/drive/MyDrive/Control_Project/Fast Food Classification V2/food_classifier.h5")
 print("Model saved successfully!")
 
-plt.figure(figsize=(12,5))
+# Your existing accuracy and loss plots plus confusion matrices
+plt.figure(figsize=(24,5))
 
-plt.subplot(1,2,1)
+# Accuracy plot
+plt.subplot(1,4,1)
 plt.plot(history.history['accuracy'], label='Train Acc')
 plt.plot(history.history['val_accuracy'], label='Val Acc')
 plt.title('Accuracy')
 plt.legend()
 
-plt.subplot(1,2,2)
+# Loss plot
+plt.subplot(1,4,2)
 plt.plot(history.history['loss'], label='Train Loss')
 plt.plot(history.history['val_loss'], label='Val Loss')
 plt.title('Loss')
 plt.legend()
 
+# Prepare true and predicted labels
+val_data.reset()  # reset generator
+pred_probs = model.predict(val_data, verbose=1)
+pred_labels = np.argmax(pred_probs, axis=1)
+true_labels = val_data.classes
+class_names = list(val_data.class_indices.keys())
+
+# Compute confusion matrix
+cm = confusion_matrix(true_labels, pred_labels)
+
+# Confusion matrix - counts
+plt.subplot(1,4,3)
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
+            xticklabels=class_names, yticklabels=class_names)
+plt.xlabel('Predicted')
+plt.ylabel('True')
+plt.title('Confusion Matrix (Counts)')
+
+# Normalized confusion matrix (percentage per true class)
+cm_norm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+
+plt.subplot(1,4,4)
+sns.heatmap(cm_norm, annot=True, fmt='.2%', cmap='Blues',
+            xticklabels=class_names, yticklabels=class_names)
+plt.xlabel('Predicted')
+plt.ylabel('True')
+plt.title('Confusion Matrix (Normalized %)')
+plt.tight_layout()
 plt.show()
 
+# Install the huggingface_hub library
+!pip install huggingface_hub --quiet
+
+from huggingface_hub import notebook_login, create_repo, HfApi
+
+# Log in using your token
+notebook_login()  # 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
+# Define your repo id
+repo_id = "anik1115/fast-food-classifier"
+
+# Create the repo (if not already existing)
+create_repo(repo_id, exist_ok=True)
+
+api = HfApi()
+
+# Upload your model file
+model_path = "/content/drive/MyDrive/Control_Project/Fast Food Classification V2/food_classifier.h5"
+api.upload_file(
+    path_or_fileobj=model_path,
+    path_in_repo="food_classifier.h5",
+    repo_id=repo_id,
+    repo_type="model"
+)
+
+# Upload a README.md for better repo description
+readme_text = """
+# Fast Food Image Classifier 🍔🍕🍟
+
+This is a MobileNetV2-based classifier trained on 10 fast food categories.
+
+## Input
+224×224 RGB images
+
+## Output
+Softmax probabilities over 10 classes:
+Baked Potato, Burger, Crispy Chicken, Donut, Fries, Hot Dog, Pizza, Sandwich, Taco, Taquito
+
+## Framework
+TensorFlow / Keras
+"""
+
+with open("README.md", "w") as f:
+    f.write(readme_text)
+
+api.upload_file(
+    path_or_fileobj="README.md",
+    path_in_repo="README.md",
+    repo_id=repo_id,
+    repo_type="model"
+)
+
+print("Model and README uploaded successfully!")
