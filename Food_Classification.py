@@ -139,7 +139,7 @@ from huggingface_hub import notebook_login, create_repo, HfApi
 # Log in using your token
 notebook_login()  # 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
 # Define your repo id
-repo_id = "anik1115/fast-food-classifier"
+repo_id = "defineyours/fast-food-classifier"
 
 # Create the repo (if not already existing)
 create_repo(repo_id, exist_ok=True)
